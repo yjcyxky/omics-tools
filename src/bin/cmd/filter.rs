@@ -1,11 +1,11 @@
 extern crate exitcode;
 extern crate omics_tools;
 
+use log::*;
 use clap::{App, Arg, ArgMatches, SubCommand};
+use omics_tools::utils::bam_cigar;
 use rust_htslib::bam::{header, Format, Read, Reader, Writer};
 use std::path::Path;
-
-use omics_tools::utils::bam_cigar;
 
 pub static COMMAND_NAME: &str = "filter";
 
@@ -33,26 +33,29 @@ pub fn run(matches: &ArgMatches) {
   let inputpath = matches.value_of("INPUT").unwrap();
   let cigar_exp = matches.value_of("cigar").unwrap();
 
-  eprintln!("Cigar Expression: {:?}", cigar_exp);
+  info!("{} - Cigar Expression: {:?}", module_path!(), cigar_exp);
+
   if Path::new(inputpath).exists() {
     filter(inputpath, cigar_exp);
   } else {
-    eprintln!("Not Found: {:?}", inputpath);
+    error!("{} - Not Found: {:?}", module_path!(), inputpath);
   }
 }
 
 pub fn filter(inputpath: &str, cigar_exp: &str) {
   let mut reader = Reader::from_path(inputpath).unwrap();
   let header = header::Header::from_template(reader.header());
-  let mut writer = Writer::from_stdout(&header, Format::BAM).unwrap();
+  let mut writer = Writer::from_stdout(&header, Format::SAM).unwrap();
   writer.set_threads(10).unwrap();
 
   for record in reader.records() {
     let record = record.unwrap();
     let cigar = record.cigar();
 
-    eprintln!(
-      "Cigar Expression Results: {:?}",
+    debug!(
+      "{} - Cigar Expression Results: {:?} {:?}",
+      module_path!(),
+      std::str::from_utf8(record.qname()).unwrap(),
       bam_cigar::exec(&cigar, cigar_exp)
     );
 
