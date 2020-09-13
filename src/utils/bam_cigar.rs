@@ -2,8 +2,15 @@ use log::*;
 use regex::Regex;
 use rust_htslib::bam::record::CigarStringView;
 
-static CIGAR_EXP: &str = r"^(?P<func>each|sum|sum_ratio)\((?P<variant_type>[MIDNSHP])\)(?P<operator>>|<|>=|<=)(?P<number>[1-9]\d*|0)$";
-static COMBINED_CIGAR_EXP: &str = r"^(?P<first>(?P<func>each|sum|sum_ratio)\((?P<variant_type>[MIDNSHP])\)(?P<operator>>|<|>=|<=)(?P<number>[1-9]\d*|0))(?P<bool_operator>&&|\|\|)?(?P<rest>.*)?$";
+fn syntax_rule() -> String {
+  let func: &str = r"(?P<func>each|sum|sum_ratio)\((?P<variant_type>[MIDNSHP])\)";
+  let operation: &str = r"(?P<operator>>|<|>=|<=)";
+  let bool_operation: &str = r"(?P<bool_operator>&&|\|\|)";
+  let number: &str = r"(?P<number>[1-9]\d*|0)";  // Only support integer
+  let rest: &str = r"(?P<rest>.*)";
+  let cigar_exp = format!("(?P<first>{}{}{})", func, operation, number);  // each(S) > 10
+  return format!("{}{}?{}?", cigar_exp, bool_operation, rest)
+}
 
 /// Remove whitespace from a string
 ///
@@ -19,7 +26,7 @@ pub fn remove_whitespace(s: &str) -> String {
 
 pub fn check_expr(expression: &str) -> bool {
   let expression = &remove_whitespace(expression)[..];
-  let r = Regex::new(COMBINED_CIGAR_EXP).unwrap();
+  let r = Regex::new(&syntax_rule()[..]).unwrap();
   match r.captures(expression) {
     Some(caps) => match caps.name("bool_operator") {
       Some(_bool_operator) => {
@@ -54,7 +61,7 @@ pub fn check_expr(expression: &str) -> bool {
 /// Exec expression for filtering bam file with cigar field.
 pub fn exec(cigar: &CigarStringView, expression: &str) -> bool {
   let expression = &remove_whitespace(expression)[..];
-  let r = Regex::new(COMBINED_CIGAR_EXP).unwrap();
+  let r = Regex::new(&syntax_rule()[..]).unwrap();
   match r.captures(expression) {
     Some(caps) => {
       let first = caps.name("first").unwrap().as_str();
@@ -86,7 +93,7 @@ pub fn exec(cigar: &CigarStringView, expression: &str) -> bool {
 /// Exec a single expression. e.g. sum(S) > 100 / each(S) > 20 / sum_ratio(S) > 0.5
 pub fn exec_single(cigar: &CigarStringView, expression: &str) -> bool {
   let expression = &remove_whitespace(expression)[..];
-  let r = Regex::new(CIGAR_EXP).unwrap();
+  let r = Regex::new(&syntax_rule()[..]).unwrap();
   match r.captures(expression) {
     Some(caps) => {
       let func = caps.name("func").unwrap().as_str();
