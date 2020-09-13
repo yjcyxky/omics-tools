@@ -5,7 +5,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use rust_htslib::bam::{header, Format, Read, Reader, Writer};
 use std::path::Path;
 
-use omics_tools::utils::bam_filter_exp;
+use omics_tools::utils::bam_cigar;
 
 pub static COMMAND_NAME: &str = "filter";
 
@@ -53,10 +53,10 @@ pub fn filter(inputpath: &str, cigar_exp: &str) {
 
     eprintln!(
       "Cigar Expression Results: {:?}",
-      bam_filter_exp::combine_cigar_exp(&cigar, cigar_exp)
+      bam_cigar::exec(&cigar, cigar_exp)
     );
 
-    if bam_filter_exp::combine_cigar_exp(&cigar, cigar_exp) {
+    if bam_cigar::exec(&cigar, cigar_exp) {
       writer.write(&record).unwrap();
     }
   }
