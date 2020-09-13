@@ -69,7 +69,7 @@ fn main() {
 
   stderrlog::new()
     .module(module_path!())
-    .modules(vec!["crate::cmd"])
+    .modules(vec!["omics_tools"])
     .quiet(quiet)
     .verbosity(verbose)
     .timestamp(ts)
