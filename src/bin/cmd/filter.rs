@@ -3,7 +3,7 @@ extern crate omics_tools;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use log::*;
-use omics_tools::utils::bam_cigar;
+use omics_tools::bam::cigar as bam_cigar;
 use rust_htslib::bam::{header, Format, Read, Reader, Writer};
 use std::path::Path;
 
