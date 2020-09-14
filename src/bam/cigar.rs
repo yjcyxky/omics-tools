@@ -1,3 +1,5 @@
+//! # To provide several functions and boolean operations for filtering bam file.
+
 use log::*;
 use regex::Regex;
 use rust_htslib::bam::record::CigarStringView;
