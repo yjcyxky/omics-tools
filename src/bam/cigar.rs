@@ -1,4 +1,4 @@
-//! # To provide several functions and boolean operations for filtering bam file.
+//! `Cigar` provides several functions and boolean operations for filtering bam file.
 
 use log::*;
 use regex::Regex;
