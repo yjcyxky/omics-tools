@@ -1,82 +1,56 @@
 #[macro_use]
 extern crate log;
-extern crate clap;
 extern crate stderrlog;
+#[macro_use]
+extern crate structopt;
 
 mod cmd;
 
-use clap::{App, AppSettings, Arg};
+use structopt::StructOpt;
 use cmd::filter;
-use std::str::FromStr;
 
-/// A StructOpt example
-#[derive(Debug)]
+/// A suite of programs for interacting with bam file
+#[derive(StructOpt, Debug)]
+#[structopt(setting=structopt::clap::AppSettings::ColoredHelp, name = "Omics Tool Suite - Bam Utility", author="Jingcheng Yang <yjcyxky@163.com>")]
 struct Opt {
+  /// A flag which control whether show more messages, true if used in the command line
+  #[structopt(short="q", long="quiet")]
   quiet: bool,
+
+  /// The number of occurrences of the `v/verbose` flag
+  /// Verbose mode (-v, -vv, -vvv, etc.)
+  #[structopt(short="v", long="verbose", parse(from_occurrences))]
   verbose: usize,
+
+  /// Timestamp(sec, ms, ns, none)
+  #[structopt(short="t", long="timestamp")]
   ts: Option<stderrlog::Timestamp>,
+
+  #[structopt(subcommand)]
+  cmd: SubCommands
+}
+
+#[derive(Debug, PartialEq, StructOpt)]
+enum SubCommands {
+  #[structopt(name="filter")]
+  Filter(filter::Arguments)
 }
 
 fn main() {
-  let app = App::new("Omics Tool Suite - Bam Utility")
-    .version("1.0")
-    .setting(AppSettings::GlobalVersion)
-    .author("Jingcheng Yang <yjcyxky@163.com>")
-    .arg(
-      Arg::with_name("quiet")
-        .long("quiet")
-        .short("q")
-        .required(false)
-        .takes_value(false)
-        .help("Quiet mode"),
-    )
-    .arg(
-      Arg::with_name("timestamp")
-        .short("t")
-        .help("prepend log lines with a timestamp")
-        .takes_value(true)
-        .possible_values(&["none", "sec", "ms", "ns"]),
-    )
-    .arg(
-      Arg::with_name("verbose")
-        .short("v")
-        .long("verbose")
-        .multiple(true)
-        .help("Sets the level of verbosity"),
-    )
-    .about("A suite of programs for interacting with bam file.");
-
-  // You can add more subcommands on it.
-  let subcommand = app.subcommand(filter::subcommand());
-
-  let matches = subcommand.get_matches();
-
-  let verbose = matches.occurrences_of("verbose") as usize;
-  let quiet = matches.is_present("quiet");
-  let ts = matches
-    .value_of("timestamp")
-    .map(|v| {
-      stderrlog::Timestamp::from_str(v).unwrap_or_else(|_| {
-        clap::Error {
-          message: "invalid value for 'timestamp'".into(),
-          kind: clap::ErrorKind::InvalidValue,
-          info: None,
-        }
-        .exit()
-      })
-    })
-    .unwrap_or(stderrlog::Timestamp::Off);
+  let opt = Opt::from_args();
 
   stderrlog::new()
     .module(module_path!())
     .modules(vec!["omics_tools"])
-    .quiet(quiet)
-    .verbosity(verbose)
-    .timestamp(ts)
+    .quiet(opt.quiet)
+    .verbosity(opt.verbose)
+    .timestamp(opt.ts.unwrap_or(stderrlog::Timestamp::Off))
     .init()
     .unwrap();
 
-  if let Some(matches) = matches.subcommand_matches(filter::COMMAND_NAME) {
-    filter::run(matches);
+  match opt.cmd {
+    SubCommands::Filter(filter) => {
+      filter::run(&filter);
+    }
   }
 }
