@@ -4,7 +4,7 @@ extern crate omics_tools;
 use log::*;
 use omics_tools::bam::cigar as bam_cigar;
 use rust_htslib::bam::{header, Format, Read, Reader, Writer};
-use std::path::{Path};
+use std::path::Path;
 use structopt::StructOpt;
 
 /// Filter Bam file by some flags or indicators
@@ -12,7 +12,7 @@ use structopt::StructOpt;
 #[structopt(setting=structopt::clap::AppSettings::ColoredHelp, name="Omics Tool Suite - Bam Utility - filter", author="Jingcheng Yang <yjcyxky@163.com>")]
 pub struct Arguments {
   /// Bam file to process
-  #[structopt(name="FILE")]
+  #[structopt(name = "FILE")]
   input: String,
 
   /// A format for output file.
@@ -20,31 +20,47 @@ pub struct Arguments {
   format: String,
 
   /// A filtered expression for cigar. e.g. each(S) > 100
-  #[structopt(name="cigar", short="c", long="cigar")]
-  cigar: String
+  #[structopt(name = "cigar", short = "c", long = "cigar")]
+  cigar: String,
+
+  /// Number of threads
+  #[structopt(
+    name = "n_threads",
+    short = "n",
+    long = "n_threads",
+    default_value = "1"
+  )]
+  n_threads: usize,
 }
 
 pub fn run(args: &Arguments) {
   info!("{} - Cigar Expression: {:?}", module_path!(), args.cigar);
 
   if Path::new(&args.input).exists() {
-    filter(&args.input, &args.cigar, &args.format);
+    filter(&args.input, &args.cigar, &args.format, args.n_threads);
   } else {
     error!("{} - Not Found: {:?}", module_path!(), args.input);
   }
 }
 
-pub fn filter(inputpath: &str, cigar_exp: &str, format: &str) {
+pub fn filter(inputpath: &str, cigar_exp: &str, format: &str, n_threads: usize) {
   let mut reader = Reader::from_path(inputpath).unwrap();
   let header = header::Header::from_template(reader.header());
-  let format = if format == "BAM" { Format::BAM } else { Format::SAM };
+  let format = if format == "BAM" {
+    Format::BAM
+  } else {
+    Format::SAM
+  };
   let mut writer = Writer::from_stdout(&header, format).unwrap();
-  writer.set_threads(10).unwrap();
+
+  reader.set_threads(n_threads).unwrap();
+  writer.set_threads(n_threads).unwrap();
+
+  bam_cigar::check_expr(cigar_exp);
 
   for record in reader.records() {
     let record = record.unwrap();
     let cigar = record.cigar();
-    bam_cigar::check_expr(cigar_exp);
     let results = bam_cigar::exec(&cigar, cigar_exp);
 
     debug!(
