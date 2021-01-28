@@ -3,11 +3,17 @@ extern crate log;
 extern crate stderrlog;
 #[macro_use]
 extern crate structopt;
+// extern crate flame;
+// #[macro_use] extern crate flamer;
 
 mod vcf_cmd;
 
 use structopt::StructOpt;
 use vcf_cmd::makedb;
+
+// use std::fs::File;
+// use flame as f;
+// use flamer::flame;
 
 /// A suite of programs for interacting with vcf file
 #[derive(StructOpt, Debug)]

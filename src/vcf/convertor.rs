@@ -1,11 +1,13 @@
+// External Library
 use flate2::read::MultiGzDecoder;
 use log::*;
-use rusqlite;
+use vcf::{VCFError, VCFReader, VCFRecord, ValueType};
+
+// Standard Library
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::{str, vec::Vec};
-use vcf::{VCFError, VCFReader, VCFRecord, ValueType};
 
 // VCF
 pub fn get_reader_gz(path: &str) -> Result<VCFReader<BufReader<MultiGzDecoder<File>>>, VCFError> {
@@ -45,7 +47,7 @@ fn infer_info_schema<R: BufRead>(
   return info_schema;
 }
 
-pub fn into_info_keys<R: BufRead>(reader: &VCFReader<R>) -> Vec<String> {
+fn into_info_keys<R: BufRead>(reader: &VCFReader<R>) -> Vec<String> {
   let info_schema = infer_info_schema(reader, false);
   let mut keys = vec![];
   for key in info_schema.keys() {
@@ -55,7 +57,31 @@ pub fn into_info_keys<R: BufRead>(reader: &VCFReader<R>) -> Vec<String> {
   return keys;
 }
 
-fn to_info_map(vcf_record: &VCFRecord, keys: Vec<String>) -> HashMap<String, String> {
+fn into_keys<R: BufRead>(reader: &VCFReader<R>) -> Vec<String> {
+  let mut all_keys = vec![];
+  let keys = into_info_keys(reader);
+
+  for item in ["chrom", "pos", "id", "ref", "alt", "qual", "filter"].iter() {
+    all_keys.push(String::from(*item));
+  }
+
+  for item in keys {
+    all_keys.push(format!("info_{}", item));
+  }
+
+  return all_keys;
+}
+
+fn into_named_keys(keys: &Vec<String>) -> Vec<String> {
+  let mut all_keys = vec![];
+  for item in keys {
+    all_keys.push(format!(":{}", item));
+  }
+
+  return all_keys;
+}
+
+fn to_info_map(vcf_record: &VCFRecord, keys: &Vec<String>) -> HashMap<String, String> {
   let mut info = HashMap::new();
   for key in keys {
     let info_value = match vcf_record.info(key.to_uppercase().as_bytes()) {
@@ -65,7 +91,7 @@ fn to_info_map(vcf_record: &VCFRecord, keys: Vec<String>) -> HashMap<String, Str
 
     let value = into_vec_u8(&info_value);
     info.insert(
-      format!("info_{}", key),
+      format!(":info_{}", key),
       String::from_utf8(value).expect("Found invalid UTF-8"),
     );
   }
@@ -133,29 +159,35 @@ fn f64_into_vec_u8(value: std::option::Option<f64>) -> Vec<u8> {
   }
 }
 
-pub fn into_row(vcf_record: &VCFRecord, info_keys: Vec<String>) -> HashMap<String, String> {
-  let mut record: HashMap<String, String> = [
-    ("chrom", vcf_record.chromosome.clone()),
-    ("pos", vcf_record.position.to_string().into_bytes()),
-    ("id", into_vec_u8(&vcf_record.id)),
-    ("ref", vcf_record.reference.clone()),
-    ("alt", into_vec_u8(&vcf_record.alternative)),
-    ("qual", f64_into_vec_u8(vcf_record.qual)),
-    ("filter", into_vec_u8(&vcf_record.filter)),
-  ]
-  .iter()
-  .map(|item| {
-    (
-      String::from(item.0),
-      String::from(match str::from_utf8(&item.1) {
-        Ok(v) => v,
-        Err(_e) => "",
-      }),
-    )
-  })
-  .collect();
+fn f64_into_string(value: std::option::Option<f64>) -> String {
+  match value {
+    None => String::from(""),
+    Some(i) => format!("{}", i),
+  }
+}
 
-  record.extend(to_info_map(&vcf_record, info_keys));
+fn into_string(items: &Vec<Vec<u8>>) -> String {
+  return items.into_iter().flatten().map(|c| *c as char).collect();
+}
+
+fn vec_u8_to_string(items: &Vec<u8>) -> String {
+  return items.into_iter().map(|c| *c as char).collect();
+}
+
+pub fn into_row_map(vcf_record: &VCFRecord, info_keys: &Vec<String>) -> HashMap<String, String> {
+  let mut record: HashMap<String, String> = HashMap::new();
+  record.insert(
+    String::from("chrom"),
+    vec_u8_to_string(&vcf_record.chromosome),
+  );
+  record.insert(String::from("pos"), vcf_record.position.to_string());
+  record.insert(String::from("id"), into_string(&vcf_record.id));
+  record.insert(String::from("ref"), vec_u8_to_string(&vcf_record.reference));
+  record.insert(String::from("alt"), into_string(&vcf_record.alternative));
+  record.insert(String::from("qual"), f64_into_string(vcf_record.qual));
+  record.insert(String::from("filter"), into_string(&vcf_record.filter));
+
+  record.extend(to_info_map(vcf_record, info_keys));
   // record.extend(to_info_map(&vcf_record, format_keys));
 
   return record;
@@ -183,6 +215,27 @@ pub fn create_table(db: &mut rusqlite::Connection, schema: &HashMap<String, Stri
   println!("Create Table: {}", ctable);
   db.execute(&ctable[..], &[] as &[&dyn rusqlite::types::ToSql])
     .unwrap();
+}
+
+fn format_insert_by_keys(keys: &Vec<String>) -> String {
+  let joined_keys = keys
+    .into_iter()
+    .map(|key| key.clone())
+    .collect::<Vec<_>>()
+    .join(", ");
+
+  let values = keys
+    .into_iter()
+    .map(|key| format!(":{}", key))
+    .collect::<Vec<_>>()
+    .join(",");
+
+  let insert_query = format!(
+    "INSERT INTO {} ({}) VALUES ({})",
+    "variant", joined_keys, values
+  );
+
+  return insert_query;
 }
 
 fn format_insert(row: &HashMap<String, String>) -> String {
@@ -227,28 +280,42 @@ pub fn insert_row(
   Ok(row_keys)
 }
 
-pub fn insert_rows<R: BufRead>(
+pub fn insert_rows<'a, R: BufRead>(
   db: &mut rusqlite::Connection,
   reader: &mut VCFReader<R>,
 ) -> Result<Vec<String>, vcf::VCFError> {
   let tx = db.transaction().unwrap();
   let mut vcf_record = reader.empty_record();
+  let keys = into_keys(&reader);
 
-  while reader.next_record(&mut vcf_record)? {
-    let info_keys = into_info_keys(&reader);
-    let row = into_row(&vcf_record, info_keys);
-    let insert_query = format_insert(&row);
-    let row_keys: Vec<String> = row.keys().into_iter().map(|item| item.clone()).collect();
-    let row_values: Vec<String> = row.values().map(|item| item.clone()).collect();
+  let named_keys = into_named_keys(&keys);
+  let named_keys_str: Vec<&str> = named_keys.iter().map(|s| &**s).collect();
 
+  let insert_query = format_insert_by_keys(&keys);
+  debug!("Insert: {}", insert_query);
+  debug!("Row Keys: {:?}", keys);
+
+  let info_keys = into_info_keys(&reader);
+
+  {
     let mut stmt = tx.prepare(&insert_query).expect("tx.prepare() failed");
-    stmt.execute(&row_values).unwrap();
 
-    debug!("Insert: {}", insert_query);
-    debug!("Row Keys: {:?}", row_keys);
-    debug!("Row Values: {:?}", row_values);
+    while reader.next_record(&mut vcf_record)? {
+      let m = into_row_map(&vcf_record, &info_keys);
+
+      let converted_values: Vec<(&str, &dyn rusqlite::ToSql)> = named_keys_str
+        .iter()
+        .map(|&k| match m.get(k) {
+          Some(_) => m.get(k).map(|v| (k, v as &dyn rusqlite::ToSql)).unwrap(),
+          None => (k, &"" as &dyn rusqlite::ToSql),
+        })
+        .collect::<Vec<_>>();
+
+      stmt.execute_named(&converted_values[..]).unwrap();
+    }
   }
 
   tx.commit().unwrap();
+
   Ok(vec![])
 }

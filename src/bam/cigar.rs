@@ -28,8 +28,12 @@ pub fn remove_whitespace(s: &str) -> String {
 
 pub fn check_expr(expression: &str) -> bool {
   let expression = &remove_whitespace(expression)[..];
-  let r = Regex::new(&syntax_rule()[..]).unwrap();
-  match r.captures(expression) {
+
+  lazy_static! {
+    static ref CHECK_EXPR_REGEX: Regex = Regex::new(&syntax_rule()[..]).unwrap();
+  }
+
+  match CHECK_EXPR_REGEX.captures(expression) {
     Some(caps) => match caps.name("bool_operator") {
       Some(_bool_operator) => {
         let bool_operator = _bool_operator.as_str();
@@ -63,8 +67,11 @@ pub fn check_expr(expression: &str) -> bool {
 /// Exec expression for filtering bam file with cigar field.
 pub fn exec(cigar: &CigarStringView, expression: &str) -> bool {
   let expression = &remove_whitespace(expression)[..];
-  let r = Regex::new(&syntax_rule()[..]).unwrap();
-  match r.captures(expression) {
+  lazy_static! {
+    static ref EXEC_REGEX: Regex = Regex::new(&syntax_rule()[..]).unwrap();
+  }
+
+  match EXEC_REGEX.captures(expression) {
     Some(caps) => {
       let first = caps.name("first").unwrap().as_str();
       match caps.name("bool_operator") {
@@ -95,8 +102,11 @@ pub fn exec(cigar: &CigarStringView, expression: &str) -> bool {
 /// Exec a single expression. e.g. sum(S) > 100 / each(S) > 20 / sum_ratio(S) > 0.5
 pub fn exec_single(cigar: &CigarStringView, expression: &str) -> bool {
   let expression = &remove_whitespace(expression)[..];
-  let r = Regex::new(&syntax_rule()[..]).unwrap();
-  match r.captures(expression) {
+  lazy_static! {
+    static ref EXEC_SINGLE_REGEX: Regex = Regex::new(&syntax_rule()[..]).unwrap();
+  }
+
+  match EXEC_SINGLE_REGEX.captures(expression) {
     Some(caps) => {
       let func = caps.name("func").unwrap().as_str();
       let variant_type = caps.name("variant_type").unwrap().as_str();
