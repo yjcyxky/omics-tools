@@ -7,6 +7,8 @@ use omics_tools::vcf::util;
 use std::path::Path;
 use structopt::StructOpt;
 
+use rusqlite::Error;
+
 /// Convert VCF file to a SQL Database File
 #[derive(StructOpt, PartialEq, Debug)]
 #[structopt(setting=structopt::clap::AppSettings::ColoredHelp, name="Omics Tool Suite - VCF Utility - makedb", author="Jingcheng Yang <yjcyxky@163.com>")]
@@ -40,9 +42,26 @@ pub fn run(args: &Arguments) {
   }
 }
 
+fn update_db_config(db: &mut rusqlite::Connection) {
+  // Improve Write Performance
+  db.pragma_update(None, "synchronous", &"OFF").unwrap();
+  info!("Synchronous Mode: OFF");
+
+  // db.pragma_update(None, "journal_mode", &"MEMORY").unwrap();
+  // info!("Jounal Mode: MEMORY");
+
+  // db.pragma_update(None, "mmap_size", &268435456).unwrap();
+  // info!("MMAP Size: 268435456");
+
+  // db.pragma_update(None, "cache_size", &10000).unwrap();
+  // info!("Cache Size: 10000");
+}
+
 pub fn makedb(input: &str, output: &str) -> Result<Vec<String>, vcf::VCFError> {
   // let mut conn = rusqlite::Connection::open_in_memory().unwrap();
   let mut conn = rusqlite::Connection::open(output).unwrap();
+
+  update_db_config(&mut conn);
 
   if util::is_vcf_file(input) {
     let mut reader = convertor::get_reader(input).unwrap();

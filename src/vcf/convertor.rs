@@ -177,15 +177,15 @@ fn vec_u8_to_string(items: &Vec<u8>) -> String {
 pub fn into_row_map(vcf_record: &VCFRecord, info_keys: &Vec<String>) -> HashMap<String, String> {
   let mut record: HashMap<String, String> = HashMap::new();
   record.insert(
-    String::from("chrom"),
+    String::from(":chrom"),
     vec_u8_to_string(&vcf_record.chromosome),
   );
-  record.insert(String::from("pos"), vcf_record.position.to_string());
-  record.insert(String::from("id"), into_string(&vcf_record.id));
-  record.insert(String::from("ref"), vec_u8_to_string(&vcf_record.reference));
-  record.insert(String::from("alt"), into_string(&vcf_record.alternative));
-  record.insert(String::from("qual"), f64_into_string(vcf_record.qual));
-  record.insert(String::from("filter"), into_string(&vcf_record.filter));
+  record.insert(String::from(":pos"), vcf_record.position.to_string());
+  record.insert(String::from(":id"), into_string(&vcf_record.id));
+  record.insert(String::from(":ref"), vec_u8_to_string(&vcf_record.reference));
+  record.insert(String::from(":alt"), into_string(&vcf_record.alternative));
+  record.insert(String::from(":qual"), f64_into_string(vcf_record.qual));
+  record.insert(String::from(":filter"), into_string(&vcf_record.filter));
 
   record.extend(to_info_map(vcf_record, info_keys));
   // record.extend(to_info_map(&vcf_record, format_keys));
@@ -212,7 +212,7 @@ fn format_ctable(schema: &HashMap<String, String>) -> String {
 
 pub fn create_table(db: &mut rusqlite::Connection, schema: &HashMap<String, String>) {
   let ctable = format_ctable(schema);
-  println!("Create Table: {}", ctable);
+  info!("Create Table: {}", ctable);
   db.execute(&ctable[..], &[] as &[&dyn rusqlite::types::ToSql])
     .unwrap();
 }
