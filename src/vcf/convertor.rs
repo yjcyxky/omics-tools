@@ -1,6 +1,7 @@
 // External Library
 use flate2::read::MultiGzDecoder;
 use log::*;
+use regex::Regex;
 use vcf::{VCFError, VCFReader, VCFRecord, ValueType};
 
 // Standard Library
@@ -41,7 +42,8 @@ fn infer_info_schema<R: BufRead>(
       ValueType::Float => String::from("FLOAT"),
       _ => String::from("VARCHAR(32)"),
     };
-    info_schema.insert(info_key, info_value);
+
+    info_schema.insert(remove_non_alphabet(&info_key), info_value);
   }
 
   return info_schema;
@@ -57,15 +59,14 @@ fn into_info_keys<R: BufRead>(reader: &VCFReader<R>) -> Vec<String> {
   return keys;
 }
 
-fn into_keys<R: BufRead>(reader: &VCFReader<R>) -> Vec<String> {
+fn into_keys(info_keys: &Vec<String>) -> Vec<String> {
   let mut all_keys = vec![];
-  let keys = into_info_keys(reader);
 
   for item in ["chrom", "pos", "id", "ref", "alt", "qual", "filter"].iter() {
     all_keys.push(String::from(*item));
   }
 
-  for item in keys {
+  for item in info_keys {
     all_keys.push(format!("info_{}", item));
   }
 
@@ -182,7 +183,10 @@ pub fn into_row_map(vcf_record: &VCFRecord, info_keys: &Vec<String>) -> HashMap<
   );
   record.insert(String::from(":pos"), vcf_record.position.to_string());
   record.insert(String::from(":id"), into_string(&vcf_record.id));
-  record.insert(String::from(":ref"), vec_u8_to_string(&vcf_record.reference));
+  record.insert(
+    String::from(":ref"),
+    vec_u8_to_string(&vcf_record.reference),
+  );
   record.insert(String::from(":alt"), into_string(&vcf_record.alternative));
   record.insert(String::from(":qual"), f64_into_string(vcf_record.qual));
   record.insert(String::from(":filter"), into_string(&vcf_record.filter));
@@ -191,6 +195,14 @@ pub fn into_row_map(vcf_record: &VCFRecord, info_keys: &Vec<String>) -> HashMap<
   // record.extend(to_info_map(&vcf_record, format_keys));
 
   return record;
+}
+
+fn remove_non_alphabet(str: &str) -> String {
+  lazy_static! {
+    static ref RE: Regex = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
+  }
+
+  String::from(RE.replace_all(str, "_").trim_end_matches("_"))
 }
 
 // SQLite
@@ -286,16 +298,16 @@ pub fn insert_rows<'a, R: BufRead>(
 ) -> Result<Vec<String>, vcf::VCFError> {
   let tx = db.transaction().unwrap();
   let mut vcf_record = reader.empty_record();
-  let keys = into_keys(&reader);
 
+  let info_keys = into_info_keys(&reader);
+
+  let keys = into_keys(&info_keys);
   let named_keys = into_named_keys(&keys);
   let named_keys_str: Vec<&str> = named_keys.iter().map(|s| &**s).collect();
 
   let insert_query = format_insert_by_keys(&keys);
   debug!("Insert: {}", insert_query);
   debug!("Row Keys: {:?}", keys);
-
-  let info_keys = into_info_keys(&reader);
 
   {
     let mut stmt = tx.prepare(&insert_query).expect("tx.prepare() failed");

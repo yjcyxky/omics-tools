@@ -7,8 +7,6 @@ use omics_tools::vcf::util;
 use std::path::Path;
 use structopt::StructOpt;
 
-use rusqlite::Error;
-
 /// Convert VCF file to a SQL Database File
 #[derive(StructOpt, PartialEq, Debug)]
 #[structopt(setting=structopt::clap::AppSettings::ColoredHelp, name="Omics Tool Suite - VCF Utility - makedb", author="Jingcheng Yang <yjcyxky@163.com>")]

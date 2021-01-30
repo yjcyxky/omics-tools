@@ -21,8 +21,6 @@ structopt = "0.3.17"
 vcf = "0.5.0"
 flate2 = "1.0.19"
 rusqlite = "0.24"
-flame = "0.2.2"
-flamer = "0.3"
 
 [dev-dependencies]
 
