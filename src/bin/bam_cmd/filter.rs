@@ -1,4 +1,3 @@
-extern crate exitcode;
 extern crate omics_tools;
 
 use log::*;

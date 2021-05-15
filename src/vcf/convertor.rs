@@ -2,6 +2,7 @@
 use flate2::read::MultiGzDecoder;
 use log::*;
 use regex::Regex;
+use super::util;
 use vcf::{VCFError, VCFReader, VCFRecord, ValueType};
 
 // Standard Library
@@ -330,4 +331,38 @@ pub fn insert_rows<'a, R: BufRead>(
   tx.commit().unwrap();
 
   Ok(vec![])
+}
+
+fn update_db_config(db: &mut rusqlite::Connection) {
+  // Improve Write Performance
+  db.pragma_update(None, "synchronous", &"OFF").unwrap();
+  info!("Synchronous Mode: OFF");
+
+  // db.pragma_update(None, "journal_mode", &"MEMORY").unwrap();
+  // info!("Jounal Mode: MEMORY");
+
+  // db.pragma_update(None, "mmap_size", &268435456).unwrap();
+  // info!("MMAP Size: 268435456");
+
+  // db.pragma_update(None, "cache_size", &10000).unwrap();
+  // info!("Cache Size: 10000");
+}
+
+pub fn makedb(input: &str, output: &str) -> Result<Vec<String>, VCFError> {
+  // let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+  let mut conn = rusqlite::Connection::open(output).unwrap();
+
+  update_db_config(&mut conn);
+
+  if util::is_vcf_file(input) {
+    let mut reader = get_reader(input).unwrap();
+    let schema = infer_schema(&reader);
+    create_table(&mut conn, &schema);
+    insert_rows(&mut conn, &mut reader)
+  } else {
+    let mut reader = get_reader_gz(input).unwrap();
+    let schema = infer_schema(&reader);
+    create_table(&mut conn, &schema);
+    insert_rows(&mut conn, &mut reader)
+  }
 }

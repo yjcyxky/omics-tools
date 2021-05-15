@@ -19,11 +19,10 @@ log = "0.4.11"
 stderrlog = "0.4.3"
 structopt = "0.3.17"
 vcf = "0.5.0"
-flate2 = "1.0.19"
-rusqlite = "0.24"
+flate2 = { version = "1.0.19", features = ["cloudflare_zlib"], default-features = false}
+rusqlite = { version = "0.24", features = ["bundled"] }
 
 [dev-dependencies]
-
 
 [profile.release]
 debug=true

@@ -2,6 +2,7 @@
 
 use log::*;
 use regex::Regex;
+use exitcode;
 use rust_htslib::bam::record::CigarStringView;
 
 fn syntax_rule() -> String {
