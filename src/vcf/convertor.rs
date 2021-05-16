@@ -2,7 +2,6 @@
 use flate2::read::MultiGzDecoder;
 use log::*;
 use regex::Regex;
-use super::util;
 use vcf::{VCFError, VCFReader, VCFRecord, ValueType};
 
 // Standard Library
@@ -10,6 +9,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::{str, vec::Vec};
+
+// Custom
+use super::util;
 
 // VCF
 pub fn get_reader_gz(path: &str) -> Result<VCFReader<BufReader<MultiGzDecoder<File>>>, VCFError> {

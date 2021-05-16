@@ -1,12 +1,14 @@
+// External
 #[macro_use]
 extern crate log;
 extern crate stderrlog;
 #[macro_use]
 extern crate structopt;
 
-mod vcf_cmd;
-
 use structopt::StructOpt;
+
+// Custom
+pub mod vcf_cmd;
 use vcf_cmd::makedb;
 
 /// A suite of programs for interacting with vcf file

@@ -1,10 +1,14 @@
-extern crate omics_tools;
-
+// External
 use log::*;
-use omics_tools::bam::cigar as bam_cigar;
 use rust_htslib::bam::{header, Format, Read, Reader, Writer};
-use std::path::Path;
 use structopt::StructOpt;
+
+// Standard
+use std::path::Path;
+
+// Custom
+extern crate omics_tools;
+use omics_tools::bam::cigar as bam_cigar;
 
 /// Filter Bam file by some flags or indicators
 #[derive(StructOpt, PartialEq, Debug)]

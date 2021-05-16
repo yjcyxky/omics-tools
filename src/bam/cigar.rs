@@ -1,18 +1,17 @@
 //! `Cigar` provides several functions and boolean operations for filtering bam file.
-
+use exitcode;
 use log::*;
 use regex::Regex;
-use exitcode;
 use rust_htslib::bam::record::CigarStringView;
 
 fn syntax_rule() -> String {
   let func: &str = r"(?P<func>each|sum|sum_ratio)\((?P<variant_type>[MIDNSHP])\)";
   let operation: &str = r"(?P<operator>>|<|>=|<=)";
   let bool_operation: &str = r"(?P<bool_operator>&&|\|\|)";
-  let number: &str = r"(?P<number>[1-9]\d*|0)";  // Only support integer
+  let number: &str = r"(?P<number>[1-9]\d*|0)"; // Only support integer
   let rest: &str = r"(?P<rest>.*)";
-  let cigar_exp = format!("(?P<first>{}{}{})", func, operation, number);  // each(S) > 10
-  return format!("{}{}?{}?", cigar_exp, bool_operation, rest)
+  let cigar_exp = format!("(?P<first>{}{}{})", func, operation, number); // each(S) > 10
+  return format!("{}{}?{}?", cigar_exp, bool_operation, rest);
 }
 
 /// Remove whitespace from a string

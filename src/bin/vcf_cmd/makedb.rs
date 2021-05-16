@@ -1,11 +1,15 @@
-extern crate omics_tools;
-
-use log::*;
+// External
 use exitcode;
+use log::*;
+use structopt::StructOpt;
+
+// Standard
+use std::path::Path;
+
+// Custom
+extern crate omics_tools;
 use omics_tools::vcf::convertor;
 use omics_tools::vcf::util;
-use std::path::Path;
-use structopt::StructOpt;
 
 /// Convert VCF file to a SQL Database File
 #[derive(StructOpt, PartialEq, Debug)]
@@ -16,7 +20,12 @@ pub struct Arguments {
   input: String,
 
   /// Output file.
-  #[structopt(name = "output", short = "o", long = "output", default_value="vcf.db")]
+  #[structopt(
+    name = "output",
+    short = "o",
+    long = "output",
+    default_value = "vcf.db"
+  )]
   output: String,
 }
 
