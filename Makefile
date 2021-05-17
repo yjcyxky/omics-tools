@@ -1,7 +1,15 @@
-build:
-	docker run --rm --user "$(id -u)":"$(id -g)" -v "$PWD":/usr/src/myapp -v ~/.cargo/config:/root/.cargo/config -w /usr/src/myapp rust:latest cargo build --release
+build-linux:
+	@echo "Build omics-tools for linux..."
+	cargo build --release --target=x86_64-unknown-linux-musl
+	cp target/x86_64-unknown-linux-musl/release/vcf-util omics-tools-clj/resources/vcf-util-x86_64-linux
 
-build-jar:
-	build
-	cp target/release/vcf-util omics-tools-clj/resources/vcf-util
-	lein deploy clojars
+build-mac:
+	@echo "Build omics-tools for mac..."
+	cargo build --release
+	cp target/release/vcf-util omics-tools-clj/resources/vcf-util-x86_64-macosx
+
+build-jar: build-linux build-mac
+	cd omics-tools-clj && lein jar
+
+publish-jar: build-linux build-mac
+	cd omics-tools-clj && lein deploy clojars

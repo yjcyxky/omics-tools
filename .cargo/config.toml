@@ -5,8 +5,8 @@ replace-with = 'ustc'
 [source.ustc]
 registry = "git://mirrors.ustc.edu.cn/crates.io-index"
 
-# [target.x86_64-apple-darwin]
-# rustflags = ["-Ctarget-cpu=native"]
+[target.x86_64-apple-darwin]
+rustflags = ["-Ctarget-cpu=native"]
 
 # [target.x86_64-unknown-linux-musl]
 # linker = "x86_64-linux-musl-gcc"
